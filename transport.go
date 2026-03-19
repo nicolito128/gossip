@@ -1,32 +1,19 @@
 package gossip
 
-import (
-	"io"
+// TransportMessage represents a message that can be sent through a transport.
+type TransportMessage struct {
+	// Raw data to be published to the channel
+	RawData []byte
 
-	"github.com/gorilla/websocket"
-)
+	// Websocket message type (e.g., websocket.TextMessage, websocket.BinaryMessage)
+	MessageType *int
 
-var defaultUpgraderWS = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	// Event name for SSE or other transport types that support event-based messaging
+	EventName *string
 }
 
 // Transporter interface ...
 type Transporter interface {
-	io.WriteCloser
-}
-
-type TransportOpt func(tc *TransportConfig)
-
-type TransportConfig struct {
-	WebSocketUpgrader websocket.Upgrader
-}
-
-func DefaultTransportConfig(opts ...TransportOpt) *TransportConfig {
-	tc := new(TransportConfig)
-	tc.WebSocketUpgrader = defaultUpgraderWS
-	for _, opt := range opts {
-		opt(tc)
-	}
-	return tc
+	Write(p TransportMessage) error
+	Close() error
 }

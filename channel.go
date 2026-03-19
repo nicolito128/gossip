@@ -27,7 +27,7 @@ func (ch *Channel) AddSubscriber(tp Transporter) {
 	ch.subscribers = append(ch.subscribers, tp)
 }
 
-func (ch *Channel) PublishCtx(ctx context.Context, p []byte) {
+func (ch *Channel) PublishCtx(ctx context.Context, messages ...TransportMessage) {
 	ch.mu.RLock()
 	defer ch.mu.RUnlock()
 
@@ -43,8 +43,13 @@ func (ch *Channel) PublishCtx(ctx context.Context, p []byte) {
 			done := make(chan error, 1)
 
 			go func() {
-				_, err := t.Write(p)
-				done <- err
+				defer close(done)
+				for i := range messages {
+					if err := t.Write(messages[i]); err != nil {
+						done <- err
+						return
+					}
+				}
 			}()
 
 			select {
@@ -60,6 +65,6 @@ func (ch *Channel) PublishCtx(ctx context.Context, p []byte) {
 	wg.Wait()
 }
 
-func (ch *Channel) Publish(p []byte) {
-	ch.PublishCtx(context.Background(), p)
+func (ch *Channel) Publish(p ...TransportMessage) {
+	ch.PublishCtx(context.Background(), p...)
 }

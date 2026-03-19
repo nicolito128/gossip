@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/nicolito128/gossip"
+	"github.com/nicolito128/gossip/adapters"
 )
 
 var (
@@ -42,17 +42,20 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveWS(w http.ResponseWriter, r *http.Request) {
-	tp, err := gossip.UpgradeWS(w, r, nil)
+	tp, err := adapters.UpgradeWS(w, r, nil)
 	if err != nil {
-		log.Println("serveWS:", err)
+		log.Printf("Failed to upgrade to WebSocket: %v", err)
 		return
 	}
-
 	ch := manager.Subscribe("ticker", tp)
-	ticker := time.NewTicker(time.Second * 1)
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
 	for tick := range ticker.C {
-		tp.SetMessageType(websocket.TextMessage)
-		msg := []byte(fmt.Sprintf("%s", tick.Format(time.RFC3339)))
-		ch.Publish(msg)
+		ch.Publish(gossip.TransportMessage{
+			RawData: []byte(fmt.Sprintf("Tick at %s", tick)),
+		})
+		fmt.Println("Published tick:", tick)
 	}
 }
