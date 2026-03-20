@@ -3,6 +3,7 @@ package adapters
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/nicolito128/gossip"
 )
@@ -17,9 +18,11 @@ type SSETransport struct {
 	config        *gossip.TransportConfig
 	writer        http.ResponseWriter
 	req           *http.Request
+	flusher       http.Flusher
 	customHeaders http.Header
 
 	closed bool
+	mu     sync.RWMutex
 }
 
 func NewSSETransport(opts ...gossip.TransportOpt) *SSETransport {
@@ -30,32 +33,47 @@ func NewSSETransport(opts ...gossip.TransportOpt) *SSETransport {
 }
 
 func (sst *SSETransport) Write(p gossip.TransportMessage) error {
+	sst.mu.RLock()
 	if sst.closed {
 		return fmt.Errorf("error: transport is closed")
 	}
 	if sst.writer == nil {
 		return http.ErrServerClosed
 	}
+	sst.mu.RUnlock()
 
-	data := p.RawData
-	if data == nil {
-		data = []byte{}
+	sst.mu.Lock()
+	defer sst.mu.Unlock()
+
+	raw := p.RawData
+	if raw == nil {
+		raw = []byte{}
 	}
 
-	_, err := sst.writer.Write(data)
+	var eventFormatted string
+
+	if p.EventID != nil {
+		eventFormatted += fmt.Sprintf("id: %s\n", *p.EventID)
+	}
+	if p.EventName != nil {
+		eventFormatted += fmt.Sprintf("event: %s\n", *p.EventName)
+	}
+	if p.EventRetry != nil {
+		eventFormatted += fmt.Sprintf("retry: %d\n", *p.EventRetry)
+	}
+	eventFormatted += fmt.Sprintf("data: %s\n\n", string(raw))
+
+	_, err := sst.writer.Write([]byte(eventFormatted))
+	sst.flusher.Flush()
+
 	return err
 }
 
 func (sst *SSETransport) Upgrade(w http.ResponseWriter, r *http.Request, h http.Header) error {
-	if !sst.closed {
-		return fmt.Errorf("error: transport is already open")
-	}
-
 	sst.writer = w
 	sst.req = r
 	sst.customHeaders = h
 
-	// Set necessary headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -70,6 +88,7 @@ func (sst *SSETransport) Upgrade(w http.ResponseWriter, r *http.Request, h http.
 	if !ok {
 		return http.ErrNotSupported
 	}
+	sst.flusher = flusher
 
 	flusher.Flush()
 	return nil
@@ -79,7 +98,7 @@ func (sst *SSETransport) Close() error {
 	if sst.closed {
 		return fmt.Errorf("error: transport is already closed")
 	}
-	// Clean up resources if necessary.
+	// Clean up resources
 	sst.writer = nil
 	sst.req = nil
 	sst.customHeaders = nil

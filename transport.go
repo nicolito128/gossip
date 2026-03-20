@@ -10,6 +10,12 @@ type TransportMessage struct {
 
 	// Event name for SSE or other transport types that support event-based messaging
 	EventName *string
+
+	// ID for the event, useful for SSE to allow clients to track the last event received
+	EventID *string
+
+	// Retry time in milliseconds for SSE clients to attempt reconnection
+	EventRetry *int
 }
 
 // Transporter interface ...

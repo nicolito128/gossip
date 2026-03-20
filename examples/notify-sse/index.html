@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Chat Example</title>
+    <script type="text/javascript">
+        window.onload = function () {
+            document.querySelector("form").onsubmit = async function (e) {
+                e.preventDefault();
+
+                const message = document.getElementById("message").value;
+
+                const res = await fetch("/message", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: "message=" + encodeURIComponent(message),
+                });
+
+                const text = await res.text();
+                if (!res.ok) {
+                    console.error("Error:", res.status, text);
+                    return;
+                }
+
+                console.log("Message sent successfully:", message);
+                message.value = "";
+            };
+
+            const eventSource = new EventSource("/events");
+
+            eventSource.addEventListener("new-message", function (e) {
+                const messagesDiv = document.getElementById("messages");
+                const msgElem = document.createElement("div");
+                msgElem.textContent = e.data;
+                messagesDiv.appendChild(msgElem);
+            });
+
+            eventSource.onerror = function (e) {
+                console.error("EventSource error:", e);
+            };
+        };
+    </script>
+    <style type="text/css">
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: gray;
+        }
+
+        #log {
+            background: white;
+            margin: 0;
+            padding: 0.5em 0.5em 0.5em 0.5em;
+            position: absolute;
+            top: 0.5em;
+            left: 0.5em;
+            right: 0.5em;
+            bottom: 3em;
+            overflow: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <form>
+        <input type="text" id="message" placeholder="Message" />
+        <button type="submit">Send</button>
+    </form>
+    <div id="messages"></div>
+</body>
+
+</html>
