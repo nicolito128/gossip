@@ -33,6 +33,11 @@ func NewSSETransport(opts ...gossip.TransportOpt) *SSETransport {
 }
 
 func (sst *SSETransport) Write(p gossip.TransportMessage) error {
+	msg := p.SSE
+	if msg == nil {
+		msg = new(gossip.SSEMessageOptions{})
+	}
+
 	sst.mu.RLock()
 	if sst.closed {
 		return fmt.Errorf("error: transport is closed")
@@ -52,14 +57,14 @@ func (sst *SSETransport) Write(p gossip.TransportMessage) error {
 
 	var eventFormatted string
 
-	if p.EventID != nil {
-		eventFormatted += fmt.Sprintf("id: %s\n", *p.EventID)
+	if msg.ID != "" {
+		eventFormatted += fmt.Sprintf("id: %s\n", msg.ID)
 	}
-	if p.EventName != nil {
-		eventFormatted += fmt.Sprintf("event: %s\n", *p.EventName)
+	if msg.Event != "" {
+		eventFormatted += fmt.Sprintf("event: %s\n", msg.Event)
 	}
-	if p.EventRetry != nil {
-		eventFormatted += fmt.Sprintf("retry: %d\n", *p.EventRetry)
+	if msg.Retry != 0 {
+		eventFormatted += fmt.Sprintf("retry: %d\n", msg.Retry)
 	}
 	eventFormatted += fmt.Sprintf("data: %s\n\n", string(raw))
 

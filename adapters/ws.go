@@ -33,13 +33,15 @@ func (wst *WebSocketTransport) Conn() *websocket.Conn {
 }
 
 func (wst *WebSocketTransport) Write(p gossip.TransportMessage) error {
-	if wst.conn == nil {
-		return websocket.ErrBadHandshake
+	msg := p.WS
+	if msg == nil {
+		msg = &gossip.WSMessageOptions{
+			MessageType: websocket.TextMessage,
+		}
 	}
 
-	messageType := websocket.TextMessage
-	if p.MessageType != nil {
-		messageType = *p.MessageType
+	if wst.conn == nil {
+		return websocket.ErrBadHandshake
 	}
 
 	data := p.RawData
@@ -47,7 +49,7 @@ func (wst *WebSocketTransport) Write(p gossip.TransportMessage) error {
 		data = []byte{}
 	}
 
-	return wst.conn.WriteMessage(messageType, data)
+	return wst.conn.WriteMessage(msg.MessageType, data)
 }
 
 func (wst *WebSocketTransport) Upgrade(w http.ResponseWriter, r *http.Request, h http.Header) error {

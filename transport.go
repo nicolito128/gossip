@@ -1,21 +1,28 @@
 package gossip
 
-// TransportMessage represents a message that can be sent through a transport.
+type TransportKind int
+
+const (
+	TransportWS TransportKind = iota
+	TransportSSE
+)
+
 type TransportMessage struct {
-	// Raw data to be published to the channel
 	RawData []byte
 
-	// Websocket message type (e.g., websocket.TextMessage, websocket.BinaryMessage)
-	MessageType *int
+	Kind TransportKind
+	WS   *WSMessageOptions
+	SSE  *SSEMessageOptions
+}
 
-	// Event name for SSE or other transport types that support event-based messaging
-	EventName *string
+type WSMessageOptions struct {
+	MessageType int
+}
 
-	// ID for the event, useful for SSE to allow clients to track the last event received
-	EventID *string
-
-	// Retry time in milliseconds for SSE clients to attempt reconnection
-	EventRetry *int
+type SSEMessageOptions struct {
+	Event string
+	ID    string
+	Retry int
 }
 
 // Transporter interface ...

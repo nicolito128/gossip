@@ -75,8 +75,10 @@ func serveSSE(messages <-chan string) http.HandlerFunc {
 			msgWithTimestamp := fmt.Sprintf("[%s] %s", now, msg)
 
 			ch.Publish(gossip.TransportMessage{
-				EventName: new("new-message"),
-				RawData:   []byte(msgWithTimestamp),
+				RawData: []byte(msgWithTimestamp),
+				SSE: &gossip.SSEMessageOptions{
+					Event: "new-message",
+				},
 			})
 			log.Printf("Published message: %s", msg)
 		}
