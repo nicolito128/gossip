@@ -68,3 +68,22 @@ func (ch *Channel) PublishCtx(ctx context.Context, messages ...TransportMessage)
 func (ch *Channel) Publish(p ...TransportMessage) {
 	ch.PublishCtx(context.Background(), p...)
 }
+
+func (ch *Channel) Transporters() []Transporter {
+	ch.mu.RLock()
+	defer ch.mu.RUnlock()
+	return ch.subscribers
+}
+
+func (ch *Channel) Close() {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	for _, tp := range ch.subscribers {
+		if tp != nil {
+			if ch.ChannelConfig.ErrHandler != nil {
+				ch.ChannelConfig.ErrHandler(tp.Close(), tp)
+			}
+		}
+	}
+	ch.subscribers = nil
+}
